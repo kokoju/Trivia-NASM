@@ -21,7 +21,7 @@ filename db "PreguntasTrivia.txt",0 ; nombre del archivo
 msg_bienvenida db "¡Bienvenido a nuestro juego de Trivia! Se te asignarán 10 preguntas aleatorias de nuestra base de datos, y deberás responder con la letra que contenga la opción correcta. ¡Buena suerte!", 0
 ; Mensajes de comprobación y estado
 msg_correcto db "¡CORRECTO!", 0  ; Mensaje para respuestas correctas
-msg_incorrecto db "¡INCORRECTO!", 0  ; Mensaje para respuestas incorrectas
+msg_incorrecto db "¡INCORRECTO! La respuesta correcta era la opción ", 0  ; Mensaje para respuestas incorrectas
 ; Mensajes para mostrar el score
 msg_indicar_respuesta db "Su respuesta a esta pregunta es: ", 0
 msg_puntaje_1 db "¡Has acertado un total de ", 0
@@ -333,6 +333,7 @@ respuesta_correcta:  ; Etiqueta cuando el usuario acierta la pregunta
 
 respuesta_incorrecta:  ; Etiqueta cuando el usuario falla la pregunta
    PutStr msg_incorrecto  ; Mensaje de fallo
+   PutCh [ESI]  ; Se muestra la respuesta correcta (almacenada en ESI)
    nwln  ; Salto de línea
    PutStr msg_puntaje_1  ; Mensaje de puntaje 1 se muestra en pantalla
    PutLInt EDX  ; Se muestra el puntaje (almacenado en EDX)
