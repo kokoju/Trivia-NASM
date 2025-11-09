@@ -9,7 +9,7 @@
 ;=====================================
 
 bufsize EQU 300	;  Máxima cantidad de bytes por pregunta
-tamannio_pregunta EQU 84  ; Máximo tamaño que puede tener una pregunta
+tamannio_pregunta EQU 80  ; Máximo tamaño que puede tener una pregunta
 tamannio_respuesta EQU 2  ; Máximo tamaño que puede tener una respuesta
 tamannio_opcion EQU 45  ; Máximo tamaño que puede tener una opción
 bloque_opciones EQU tamannio_opcion*4  ; Máximo de tamaño que puede tener un bloque de 4 opciones
@@ -23,6 +23,8 @@ msg_bienvenida db "¡Bienvenido a nuestro juego de Trivia! Se te asignarán 10 p
 msg_correcto db "¡CORRECTO!", 0  ; Mensaje para respuestas correctas
 msg_incorrecto db "¡INCORRECTO! La respuesta correcta era la opción ", 0  ; Mensaje para respuestas incorrectas
 ; Mensajes para mostrar el score
+
+
 msg_indicar_respuesta db "Su respuesta a esta pregunta es: ", 0
 msg_puntaje_1 db "¡Has acertado un total de ", 0
 msg_puntaje_2 db " pregunta(s)!", 0
@@ -71,7 +73,7 @@ randint:  ; Rutina para volver a llamar randint (numero entre 0 y 29) e iniciar 
     xor edx, eax  ; Desorden
     rol edx, 13  ; Desorden
     xor eax, edx  ; Desorden
-    mov ebx, 30  ; Número maximo
+    mov ebx, 35  ; Número maximo
     xor edx, edx  ; Desorden
     div ebx  ; Divide y el número generado obtenido es pseudo-aleatorio (residuo se encuentra en EDX)
     
