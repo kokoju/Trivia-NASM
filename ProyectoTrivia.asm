@@ -12,6 +12,8 @@ bufsize EQU 300	;  Máxima cantidad de bytes por pregunta
 tamannio_pregunta EQU 80  ; Máximo tamaño que puede tener una pregunta
 tamannio_respuesta EQU 2  ; Máximo tamaño que puede tener una respuesta
 tamannio_opcion EQU 45  ; Máximo tamaño que puede tener una opción
+tamannio_totalidad_pregunta EQU 7  ; Cantidad de líneas que tiene cada pregunta en el archivo (pregunta + 4 opciones + respuesta + puntaje)
+
 bloque_opciones EQU tamannio_opcion*4  ; Máximo de tamaño que puede tener un bloque de 4 opciones
 cantidad_preguntas EQU 10  ; Cantida de preguntas que se le muestran al usuario en una "run"
 
@@ -26,9 +28,12 @@ msg_incorrecto db "¡INCORRECTO! La respuesta correcta era la opción ", 0  ; Me
 
 
 msg_indicar_respuesta db "Su respuesta a esta pregunta es: ", 0
-msg_puntaje_1 db "¡Has acertado un total de ", 0
-msg_puntaje_2 db " pregunta(s)!", 0
+msg_puntaje_1 db "¡Has acumulado un total de ", 0
+msg_puntaje_2 db " punto(s)!", 0
 msg_error db "Error leyendo archivo: intente nuevamente", 0
+msg_volver_jugar db "¿Desea volver a jugar? (S/N): ", 0
+msg_valor_pregunta_1 db "Esta pregunta vale por ", 0
+msg_valor_pregunta_2 db " punto(s)", 0
 
 .UDATA
 contador_enter resd 1  ; Cuenta la cantidad de Enters para asi ver las preguntas correctamente
@@ -38,6 +43,7 @@ buftrash resb 1	 ; Buffer para guardar un valor hasta saltar x lineas
 arreglo_preguntas resb tamannio_pregunta*cantidad_preguntas ;reserva 10 preguntas
 arreglo_opciones resb bloque_opciones*cantidad_preguntas ;las 4 opciones de las 10 preguntas
 arreglo_respuestas resb tamannio_respuesta*cantidad_preguntas ;las respuestas de las 10 preguntas
+arreglo_puntaje resb tamannio_respuesta*cantidad_preguntas  ; Arreglo que guarda el puntaje de cada pregunta
 
 n_pregunta resd 1  ; Pregunta actual (índice dentro de casi TODOS los arreglos, exceputando arreglo_num_elegidos)
 
@@ -106,7 +112,7 @@ repetir_randint:  ; Etiqueta a la que llegamos cuando el número obtenido estaba
     jmp randint  ; Se repite el randint
 
 no_repetido:  ; Etiqueta a la que llegamos cuando nuestro número no fue repetido
-    imul edx, 6  ; Se multiplica nuestro resultado de randint por 6
+    imul edx, tamannio_totalidad_pregunta  ; Se multiplica nuestro resultado de randint por 6
     mov DWORD [contador_enter], edx  ;  Se guarda el valor de los enters a saltar en el contador
 
 ;==================================================================================
@@ -119,6 +125,7 @@ no_repetido:  ; Etiqueta a la que llegamos cuando nuestro número no fue repetid
 ;* Opcion3\n   *
 ;* Opcion4\n   *
 ;* Respuesta\n *
+;* Puntaje\n   *
 ;* Pregunta2\n *
 ;***************
 ;
@@ -230,7 +237,16 @@ guardar_respuesta:  ; Etiqueta encargada de guardar la respuesta
    mov [EDI], al   ; Se guarda el carácter en su respectivo espacio
    inc EDI  ; Se incrementa en 1 para revisar lo que es el enter
    mov BYTE[EDI], 0  ; Se guarda nulo en ese espacio para borrarlo
-   
+   inc ESI  ; Siguiente en el buffer
+   inc ESI ;  Siguiente en el buffer (para saltar el enter)
+
+; === Guardado de puntaje ===
+guardar_puntaje:  ; Etiqueta encargada de guardar el puntaje
+   lea EDI, [arreglo_puntaje + ecx*tamannio_respuesta] ;  Cada puntaje contiene 2 bytes, guardada en su respectiva posición según lo que almacena ECX (índice de pregunta actual de los arreglos)
+   mov al, [ESI]  ; ESI siempre apunta a lo siguiente a guardar, según el formato del documento
+   mov [EDI], al   ; Se guarda el carácter en su respectivo espacio
+   inc EDI  ; Se incrementa en 1 para revisar lo que es el enter
+   mov BYTE[EDI], 0  ; Se guarda nulo en ese espacio para borrarlo
 
 ;=== guarda las respuestas en el arreglo ===
  
@@ -254,9 +270,7 @@ cerrar_archivo2:  ; Etiqueta para cerrar archivo, pero sin volver a saltar a nue
     
 mostrar_preguntas_usuario:  ; Etiqueta hecha para comenzar a hacerle preguntas al usuario
    call logica_preguntas  ; Hacemos una llamada para hacer la lógica de las preguntas
-   
    call pedir_respuesta_usuario  ; Después de imprimir el contenido, se le pide una respuesta al usuario
-  
    inc DWORD [n_pregunta]  ; Suma al DWORD [n_pregunta] para pasar a los siguientes elementos de impresión
    cmp DWORD [n_pregunta], 10  ; ¿Hemos llegado a la última pregunta? 
    je  fin;  Si es así, terminamos de registrar
@@ -298,10 +312,16 @@ imprimir_letras:  ; Impresión letra por letra
   
  
 pedir_respuesta_usuario:  ; Lógica para pedirle respuesta al usuario
-   PutStr msg_indicar_respuesta  ; Se pone en pantalla el mensaje de respuesta
-   GetCh  AL  ; Se almacena la respuesta del usuario en AL
    mov ECX, DWORD [n_pregunta]  ;  Ponemos en ECX el índice del arreglo que llevamos
    imul ECX, tamannio_respuesta  ; Se calcula el offset dentro de arreglo_respuestas
+   lea ESI, [arreglo_puntaje + ECX]  ; ESI apunta a la posición correcta del arreglo de puntajes
+   PutStr msg_valor_pregunta_1  ; Mensaje de puntaje 1 se muestra en pantalla
+   PutCh [ESI]  ; Se muestra el puntaje de la pregunta actual
+   PutStr msg_valor_pregunta_2  ; Mensaje de puntaje 2 se muestra en pantalla
+   nwln  ; Salto de línea
+   PutStr msg_indicar_respuesta  ; Se pone en pantalla el mensaje de respuesta
+   GetCh  AL  ; Se almacena la respuesta del usuario en AL
+   nwln  ; Salto de línea
    lea ESI, [arreglo_respuestas + ECX]  ; ESI apunta a la posición correcta del arreglo de respuestas
    call procesar_char  ; Pasamos el contenido de AL a mayúsculas
    cmp AL, [ESI]  ; Comparamos la respuesta correcta con la respuesta introducida
@@ -323,11 +343,12 @@ no_operacion:  ; Etiqueta a la que se llega el carácter no es minúscula (una m
 	ret  ; Se devuelve al call inicial, no hay transformación real
 
 respuesta_correcta:  ; Etiqueta cuando el usuario acierta la pregunta
-   inc EDX  ; Incrementa el puntaje
+   add DL, BYTE[arreglo_puntaje + ECX]  ; Incrementa el puntaje
+   sub DL, '0'  ; Convierte el carácter a su valor numérico
    PutStr msg_correcto  ; Mensaje de éxito
    nwln  ; Salto de línea
    PutStr msg_puntaje_1  ; Mensaje de puntaje 1 se muestra en pantalla
-   PutLInt EDX  ; Se muestra el puntaje (almacenado en EDX)
+   PutInt DX  ; Se muestra el puntaje (almacenado en DX)
    PutStr msg_puntaje_2  ; Mensaje de puntaje 2 se muestra en pantalla
    nwln  ; Salto de línea
    nwln  ; Salto de línea
@@ -338,7 +359,7 @@ respuesta_incorrecta:  ; Etiqueta cuando el usuario falla la pregunta
    PutCh [ESI]  ; Se muestra la respuesta correcta (almacenada en ESI)
    nwln  ; Salto de línea
    PutStr msg_puntaje_1  ; Mensaje de puntaje 1 se muestra en pantalla
-   PutLInt EDX  ; Se muestra el puntaje (almacenado en EDX)
+   PutInt DX  ; Se muestra el puntaje (almacenado en DX)
    PutStr msg_puntaje_2  ; Mensaje de puntaje 2 se muestra en pantalla
    nwln  ; Salto de línea
    nwln  ; Salto de línea
