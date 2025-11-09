@@ -36,6 +36,7 @@ msg_valor_pregunta_1 db "Esta pregunta vale por ", 0
 msg_valor_pregunta_2 db " punto(s)", 0
 
 .UDATA
+contador_puntaje resd 1  ; Contador de puntaje total
 contador_enter resd 1  ; Cuenta la cantidad de Enters para asi ver las preguntas correctamente
 buffer resb bufsize ; Buffer como mediador para guardar todo a sus arreglos
 buftrash resb 1	 ; Buffer para guardar un valor hasta saltar x lineas
@@ -60,6 +61,38 @@ n_repetidos resd 1  ;  Cantidad que guarda la cantidad de numeros en el arreglo 
         .STARTUP
 inicio:  ; Incio de nuestro código
     mov DWORD [n_pregunta], 0  ; Se limpia n_pregunta
+    mov DWORD [contador_puntaje], 0  ; Se limpia el contador de puntaje
+    jmp abrir_archivo;  ; Saltamos a la apertura del archivo
+
+inicio_reinicio:  ; Etiqueta para reiniciar el juego
+   ; LIMPIEZA DE TODOS LOS ARREGLOS Y VARIABLES
+   xor EAX, EAX  ; Ponemos AL en 0 (contenido que vamos a copiar con stosb)
+   lea EDI, [arreglo_preguntas]  ; Dirección de inicio del arreglo de preguntas
+   mov ECX, tamannio_pregunta * cantidad_preguntas  ; Movemos a ECX la cantidad total de bytes a limpiar (tamaño de arreglo_preguntas)
+   rep stosb  ; rep stosb copia el contenido de AL (0) en [EDI] ECX veces
+
+   lea EDI, [arreglo_opciones]  ; Dirección de inicio del arreglo de opciones
+   mov ECX, bloque_opciones * cantidad_preguntas  ; Movemos a ECX la cantidad total de bytes a limpiar (tamaño de arreglo_opciones)
+   rep stosb  ; rep stosb copia el contenido de AL (0) en [EDI] ECX veces
+
+   lea EDI, [arreglo_respuestas]  ; Dirección de inicio del arreglo de respuestas
+   mov ECX, tamannio_respuesta * cantidad_preguntas  ; Movemos a ECX la cantidad total de bytes a limpiar (tamaño de arreglo_respuestas)
+   rep stosb  ; rep stosb copia el contenido de AL (0) en [EDI] ECX veces
+
+   lea EDI, [arreglo_puntaje]  ; Dirección de inicio del arreglo de puntajes
+   mov ECX, tamannio_respuesta * cantidad_preguntas  ; Movemos a ECX la cantidad total de bytes a limpiar (tamaño de arreglo_puntaje)
+   rep stosb  ; rep stosb copia el contenido de AL (0) en [EDI] ECX veces
+
+   lea EDI, [arreglo_num_elegidos]  ; Dirección de inicio del arreglo de números elegidos
+   mov ECX, cantidad_preguntas
+   rep stosd  ; rep stosd copia el contenido de EAX (0) en [EDI] ECX veces
+
+   lea EDI, [n_repetidos]  ; Dirección de inicio de n_repetidos
+   mov ECX, 1
+   rep stosd  ; rep stosd copia el contenido de EAX (0) en [EDI] ECX veces
+
+   mov DWORD [contador_enter], 0  ; Se limpia el contador enters
+   mov DWORD [n_pregunta], 0  ; Se limpia n_pregunta
 
 abrir_archivo:  ; Proceso para abrir nuestro archivo de preguntas
     mov eax, 5  ; sys_open
@@ -266,14 +299,14 @@ cerrar_archivo2:  ; Etiqueta para cerrar archivo, pero sin volver a saltar a nue
    PutStr msg_bienvenida  ; Le damos la bienvenida al usuario
    nwln  ; Salto de línea
    mov DWORD [n_pregunta], 0  ; Ponemos nuestro índice de pregunta en 0s
-   xor EDX, EDX  ; Ponemos nuestro puntaje (almacenado en EDX) en 0s también
+   lea EDX, contador_puntaje  ; Pone a EDX a apuntar a nuestro contador de puntaje
     
 mostrar_preguntas_usuario:  ; Etiqueta hecha para comenzar a hacerle preguntas al usuario
    call logica_preguntas  ; Hacemos una llamada para hacer la lógica de las preguntas
    call pedir_respuesta_usuario  ; Después de imprimir el contenido, se le pide una respuesta al usuario
    inc DWORD [n_pregunta]  ; Suma al DWORD [n_pregunta] para pasar a los siguientes elementos de impresión
    cmp DWORD [n_pregunta], 10  ; ¿Hemos llegado a la última pregunta? 
-   je  fin;  Si es así, terminamos de registrar
+   je  preguntar_fin;  Si es así, terminamos de registrar
    jmp mostrar_preguntas_usuario
     
 logica_preguntas:
@@ -343,12 +376,13 @@ no_operacion:  ; Etiqueta a la que se llega el carácter no es minúscula (una m
 	ret  ; Se devuelve al call inicial, no hay transformación real
 
 respuesta_correcta:  ; Etiqueta cuando el usuario acierta la pregunta
-   add DL, BYTE[arreglo_puntaje + ECX]  ; Incrementa el puntaje
-   sub DL, '0'  ; Convierte el carácter a su valor numérico
+   mov EAX, DWORD [arreglo_puntaje + ECX]  ; Guarda el contenido de la posición del puntaje en AL
+   sub EAX, '0'  ; Convierte el carácter a su valor numérico
+   add DWORD [EDX], EAX  ; Incrementa el puntaje
    PutStr msg_correcto  ; Mensaje de éxito
    nwln  ; Salto de línea
    PutStr msg_puntaje_1  ; Mensaje de puntaje 1 se muestra en pantalla
-   PutInt DX  ; Se muestra el puntaje (almacenado en DX)
+   PutInt [EDX]  ; Se muestra el puntaje
    PutStr msg_puntaje_2  ; Mensaje de puntaje 2 se muestra en pantalla
    nwln  ; Salto de línea
    nwln  ; Salto de línea
@@ -359,7 +393,7 @@ respuesta_incorrecta:  ; Etiqueta cuando el usuario falla la pregunta
    PutCh [ESI]  ; Se muestra la respuesta correcta (almacenada en ESI)
    nwln  ; Salto de línea
    PutStr msg_puntaje_1  ; Mensaje de puntaje 1 se muestra en pantalla
-   PutInt DX  ; Se muestra el puntaje (almacenado en DX)
+   PutInt [EDX]  ; Se muestra el puntaje
    PutStr msg_puntaje_2  ; Mensaje de puntaje 2 se muestra en pantalla
    nwln  ; Salto de línea
    nwln  ; Salto de línea
@@ -369,10 +403,22 @@ respuesta_incorrecta:  ; Etiqueta cuando el usuario falla la pregunta
 return:  ; Etiqueta para hacer rets condicionales
    ret  ; Return para cuando hay un call
 
-error:
-	nwln
-	PutStr msg_error
-	nwln
+error:  ; Etiqueta de error
+	nwln  ; Salto de línea
+	PutStr msg_error  ; Mensaje de error
+	nwln  ; Salto de línea
+   jmp fin  ; Salto al final del programa
+
+preguntar_fin:  ; Etiqueta para preguntar si desea volver a jugar
+   PutStr msg_volver_jugar  ; Se pregunta al usuario si desea volver a jugar
+   GetCh AL  ; Se obtiene la respuesta del usuario
+   nwln  ; Salto de línea
+   call procesar_char  ; Pasamos el contenido de AL a mayúsculas
+   cmp AL, 'S'  ; Se compara si la respuesta es Sí
+   je inicio_reinicio  ; Si es así, se reinicia el juego
+   jmp fin  ; Si no es así, se termina la ejecución
+
+
 fin:
     .EXIT
 
