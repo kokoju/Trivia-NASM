@@ -134,7 +134,7 @@ verificar_repetido:  ; Etiqueta para verificar si el número obtenido del randin
     inc esi  ; Si no son iguales, procedemos a incrementar esi y revisar el siguiente dígito
     jmp verificar_repetido  ; Saltamos a la misma etiqueta en la que nos encontramos
 
-guardar_numero:  ; Etiqueta a la que llegamos si el número que obtuvimos no está repetido:
+guardar_numero:  ; Etiqueta a la que llegamos si el número que obtuvimos no está repetido: 
     mov eax, DWORD [n_repetidos]  ; Ponemos en EAX la cantidad de números que habíamos contabilizado antes
     mov [arreglo_num_elegidos + eax*4], edx ; A la siguiente casilla libre se le asigna EDX (resultado de randint)
     inc DWORD [n_repetidos]  ; Incrementamos la cantidad de números guardados para apuntar al siguiente espacio vacío
@@ -145,7 +145,7 @@ repetir_randint:  ; Etiqueta a la que llegamos cuando el número obtenido estaba
     jmp randint  ; Se repite el randint
 
 no_repetido:  ; Etiqueta a la que llegamos cuando nuestro número no fue repetido
-    imul edx, tamannio_totalidad_pregunta  ; Se multiplica nuestro resultado de randint por el tamaño de una pregunta
+    imul edx, tamannio_totalidad_pregunta  ; Se multiplica nuestro resultado de randint por 6
     mov DWORD [contador_enter], edx  ;  Se guarda el valor de los enters a saltar en el contador
 
 ;==================================================================================
@@ -364,13 +364,16 @@ pedir_respuesta_usuario:  ; Lógica para pedirle respuesta al usuario
 ; === Paso de respuestas a mayúscula===
 procesar_char:  ; Etiqueta para pasar de minúsculas a mayúsculas
 	cmp AL, 'a'  ; Si el carácter es inferior a la a minúscula
-	jl return  ; No es un carácter en minúscula
+	jl no_operacion  ; No es un carácter en minúscula
 	cmp AL, 'z' ; Si el carácter es superior a la z minúscula
-	jg return;  No es un carácter minúscula
+	jg no_operacion;  No es un carácter minúscula
 
 transformar_mayuscula:  ; Etiqueta a la que se llega si la letra es minúscula
 	add AL, 'A'-'a'  ; Se tranforma con una suma la letra en mayúscula
 	ret  ; Se devuelve al call inicial
+
+no_operacion:  ; Etiqueta a la que se llega el carácter no es minúscula (una mayúscula o cualquier carácter aparte)
+	ret  ; Se devuelve al call inicial, no hay transformación real
 
 respuesta_correcta:  ; Etiqueta cuando el usuario acierta la pregunta
    mov EAX, DWORD [arreglo_puntaje + ECX]  ; Guarda el contenido de la posición del puntaje en AL
@@ -401,6 +404,8 @@ return:  ; Etiqueta para hacer rets condicionales
    ret  ; Return para cuando hay un call
 
 error:  ; Etiqueta de error
+	mov EAX, 6
+	int 0x80
 	nwln  ; Salto de línea
 	PutStr msg_error  ; Mensaje de error
 	nwln  ; Salto de línea
@@ -413,7 +418,7 @@ preguntar_fin:  ; Etiqueta para preguntar si desea volver a jugar
    call procesar_char  ; Pasamos el contenido de AL a mayúsculas
    cmp AL, 'S'  ; Se compara si la respuesta es Sí
    je inicio_reinicio  ; Si es así, se reinicia el juego
-   jmp fin  ; Si no es así, se termina la ejecución
+		       ;Si no acaba el programa. 
 
 
 fin:
